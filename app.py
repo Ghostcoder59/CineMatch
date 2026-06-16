@@ -2,6 +2,7 @@ import pickle
 import random
 import requests
 import os
+import re
 from collections import Counter
 from flask import Flask, render_template, request, redirect, url_for
 
@@ -48,6 +49,11 @@ def as_list(value):
     return value if isinstance(value, list) else []
 
 
+def normalize_movie_title(title):
+    cleaned_title = str(title).strip().lower()
+    return re.sub(r"\s*\(\d{4}\)$", "", cleaned_title)
+
+
 def build_match_reasons(selected_movie_data, movie_data, similarity_score):
     selected_genres = set(as_list(selected_movie_data.get('genres', [])))
     movie_genres = set(as_list(movie_data.get('genres', [])))
@@ -80,7 +86,8 @@ def build_match_reasons(selected_movie_data, movie_data, similarity_score):
 
 # Function to recommend movies
 def recommend(movie):
-    matched = movies[movies['title'].str.lower() == movie.lower()]
+    normalized_movie = normalize_movie_title(movie)
+    matched = movies[movies['title'].apply(normalize_movie_title) == normalized_movie]
     if matched.empty:
         return None, [], "Movie not found in database", []
     
