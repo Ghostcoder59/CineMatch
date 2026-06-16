@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineMatch — AI Movie Recommender</title>
+    <!-- Modern typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome for premium icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <!-- Background glowing orbs for visual depth -->
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+
+    <!-- Loading Spinner Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="spinner-box">
+            <div class="double-ring-spinner">
+                <div></div>
+                <div></div>
+            </div>
+            <p id="loading-text">Analyzing cinematic elements...</p>
+        </div>
+    </div>
+
+    <!-- Header Navigation -->
+    <header class="header">
+        <div class="logo">
+            <i class="fas fa-film logo-icon"></i>
+            <span class="logo-text">Cine<span class="logo-highlight">Match</span></span>
+        </div>
+        <div class="nav-links">
+            <a href="/" class="nav-link active">Home</a>
+            <a href="/random" class="nav-link surprise-nav"><i class="fas fa-random"></i> Surprise Me</a>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <!-- Hero Search Section -->
+        <section class="hero-section">
+            <h1 class="hero-title">Discover Your Next <span class="text-gradient">Favorite Movie</span></h1>
+            <p class="hero-subtitle">Enter a movie you love, and our AI will search 4,800+ films to curate 10 perfect matches.</p>
+
+            <form id="search-form" method="POST" action="/" class="search-form">
+                <div class="search-container">
+                    <div class="search-box">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" id="movie-search" name="movie" placeholder="Type your favorite movie (e.g. Inception, Avatar...)" autocomplete="off" value="{{ selected_movie_name or '' }}" required>
+                        <button type="button" class="clear-btn" id="clear-search"><i class="fas fa-times"></i></button>
+                        <button class="search-submit-btn" type="submit">Recommend</button>
+                    </div>
+                    <div class="autocomplete-results" id="autocomplete-list"></div>
+                </div>
+            </form>
+
+            <div class="mood-wheel-panel glass-panel">
+                <div class="mood-wheel-copy">
+                    <span class="section-label">Mood Wheel</span>
+                    <h3>Shift the vibe without leaving the page</h3>
+                    <p>Pick a cinematic mood to instantly remap the site's accent palette and energy.</p>
+                </div>
+                <div class="mood-wheel" id="mood-wheel" aria-label="Cinema mood selector">
+                    <button type="button" class="mood-chip mood-chip-neon" data-theme="neon">Neon</button>
+                    <button type="button" class="mood-chip mood-chip-noir" data-theme="noir">Noir</button>
+                    <button type="button" class="mood-chip mood-chip-aurora" data-theme="aurora">Aurora</button>
+                    <button type="button" class="mood-chip mood-chip-sunset" data-theme="sunset">Sunset</button>
+                    <div class="mood-wheel-core">
+                        <span>Cinema</span>
+                        <strong>Mode</strong>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Selected Movie Details Showcase -->
+        {% if selected_movie_details %}
+        <section class="showcase-section">
+            <div class="glass-panel showcase-card">
+                <div class="showcase-poster">
+                    <img src="{{ selected_movie_details.poster_url }}" alt="{{ selected_movie_details.title }} Poster" class="details-poster">
+                    {% if selected_movie_details.trailer_url %}
+                    <button class="play-overlay-btn" onclick="playTrailer('{{ selected_movie_details.trailer_url }}')">
+                        <i class="fas fa-play"></i>
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="showcase-info">
+                    <div class="showcase-header">
+                        <h2 class="showcase-title">{{ selected_movie_details.title }}</h2>
+                        <div class="showcase-meta">
+                            <span class="meta-item"><i class="fas fa-user-tie"></i> Director: <strong>{{ selected_movie_details.director }}</strong></span>
+                        </div>
+                    </div>
+
+                    <div class="genre-container">
+                        {% for genre in selected_movie_details.genres %}
+                        <span class="genre-pill">{{ genre }}</span>
+                        {% endfor %}
+                    </div>
+
+                    <p class="showcase-overview">{{ selected_movie_details.overview }}</p>
+
+                    {% if selected_movie_details.cast %}
+                    <div class="cast-section">
+                        <h4 class="section-label">Starring</h4>
+                        <div class="cast-list">
+                            {% for actor in selected_movie_details.cast %}
+                            <span class="cast-badge"><i class="fas fa-user"></i> {{ actor }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="showcase-actions">
+                        {% if selected_movie_details.trailer_url %}
+                        <button class="btn btn-primary" onclick="playTrailer('{{ selected_movie_details.trailer_url }}')">
+                            <i class="fas fa-play-circle"></i> Watch Trailer
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- Recommendations Carousel Section -->
+        {% if recommended_movies %}
+        <section class="recommendations-section">
+            <div class="section-header">
+                <h2 class="section-title">Cinematic Matches <span class="text-subtitle">(More Like This)</span></h2>
+                <p class="section-desc">Click any card to browse recommendations for that movie</p>
+            </div>
+
+            {% if recommendation_story %}
+            <div class="story-banner glass-panel">
+                <div class="story-banner-icon"><i class="fas fa-wand-magic-sparkles"></i></div>
+                <p>{{ recommendation_story }}</p>
+            </div>
+            {% endif %}
+            
+            <div class="carousel-wrapper">
+                <button class="carousel-nav prev-btn" onclick="scrollCarousel(-1)" aria-label="Previous Slide"><i class="fas fa-chevron-left"></i></button>
+                <div class="carousel-track-container" id="carousel-track-container">
+                    <div class="carousel-track" id="carousel-track">
+                        {% for movie in recommended_movies %}
+                        <div class="movie-card" onclick='browseMovie({{ movie.title|tojson }})' data-title="{{ movie.title|e }}">
+                            <div class="poster-container">
+                                <img src="{{ movie.poster_url }}" alt="{{ movie.title }} Poster" loading="lazy">
+                                <div class="card-overlay">
+                                    <div class="card-score-pill"><i class="fas fa-bolt"></i> {{ (movie.match_score * 100)|round|int }}%</div>
+                                    {% if movie.match_reasons %}
+                                    <div class="card-reason">{{ movie.match_reasons[0] }}</div>
+                                    {% endif %}
+                                    <span class="card-play-icon"><i class="fas fa-plus"></i></span>
+                                    <button type="button" class="card-pin-btn" onclick='event.stopPropagation(); toggleQueue({{ movie.title|tojson }}, {{ movie.poster_url|tojson }})'>
+                                        <i class="fas fa-bookmark"></i> Pin
+                                    </button>
+                                    {% if movie.trailer_url %}
+                                    <button class="card-trailer-btn" onclick='event.stopPropagation(); playTrailer({{ movie.trailer_url|tojson }})'>
+                                        <i class="fas fa-play"></i> Trailer
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="card-details">
+                                <h3 class="card-title">{{ movie.title }}</h3>
+                                <div class="card-meta">
+                                    <span class="card-director"><i class="fas fa-video"></i> {{ movie.director }}</span>
+                                </div>
+                                <div class="card-genres">
+                                    {% for genre in movie.genres[:2] %}
+                                    <span class="card-genre-tag">{{ genre }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <button class="carousel-nav next-btn" onclick="scrollCarousel(1)" aria-label="Next Slide"><i class="fas fa-chevron-right"></i></button>
+            </div>
+        </section>
+        {% endif %}
+
+        {% if genre_stats %}
+        <section class="genre-stats-section">
+            <div class="section-header">
+                <h2 class="section-title">Genre Breakdown <span class="text-subtitle">(Recommendations)</span></h2>
+                <p class="section-desc">A visual split of the genre tags across your recommendation set.</p>
+            </div>
+
+            <div class="genre-stats-panel glass-panel">
+                <div class="genre-donut-card">
+                    <div class="genre-donut" id="genre-donut" aria-hidden="true"></div>
+                    <div class="genre-donut-center">
+                        <span class="genre-total-count" id="genre-total-count">0</span>
+                        <span class="genre-total-label">Genre tags</span>
+                    </div>
+                </div>
+
+                <div class="genre-bars-card">
+                    <div class="genre-legend" id="genre-legend"></div>
+                    <div class="genre-bars" id="genre-bars"></div>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        {% if compare_movies %}
+        <section class="compare-section">
+            <div class="section-header">
+                <h2 class="section-title">Compare Picks <span class="text-subtitle">(Top Matches)</span></h2>
+                <p class="section-desc">A compact view of the strongest overlaps in the top recommendation set.</p>
+            </div>
+
+            <div class="compare-grid">
+                {% for movie in compare_movies %}
+                <article class="compare-card glass-panel">
+                    <div class="compare-card-top">
+                        <h3>{{ movie.title }}</h3>
+                        <span class="compare-score">{{ (movie.match_score * 100)|round|int }}%</span>
+                    </div>
+                    <div class="compare-meta">
+                        <div>
+                            <span class="compare-label">Shared genres</span>
+                            <p>{{ movie.shared_genres|join(', ') if movie.shared_genres else 'Tone overlap' }}</p>
+                        </div>
+                        <div>
+                            <span class="compare-label">Shared cast</span>
+                            <p>{{ movie.shared_cast|join(', ') if movie.shared_cast else 'No direct cast overlap' }}</p>
+                        </div>
+                        <div>
+                            <span class="compare-label">Director</span>
+                            <p>{{ movie.director }}</p>
+                        </div>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <section class="queue-section">
+            <div class="section-header">
+                <h2 class="section-title">Watch Queue <span class="text-subtitle">(Pinned Picks)</span></h2>
+                <p class="section-desc">Pin any recommendation and keep it in a personal watch-next tray.</p>
+            </div>
+
+            <div class="watch-queue glass-panel" id="watch-queue">
+                <div class="watch-queue-empty" id="watch-queue-empty">
+                    <i class="fas fa-bookmark"></i>
+                    <p>Pin movies from the carousel to build a watch-next queue.</p>
+                </div>
+                <div class="watch-queue-list" id="watch-queue-list"></div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Trailer Video Modal Overlay -->
+    <div class="modal" id="trailer-modal">
+        <div class="modal-content glass-panel">
+            <button class="close-modal" onclick="stopTrailer()"><i class="fas fa-times"></i></button>
+            <div class="video-container">
+                <iframe id="trailer-iframe" src="" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- Autocomplete and Interactive Page JS -->
+    <script>
+        const movies = {{ movies|tojson }};
+        const genreStats = {{ genre_stats|default([], true)|tojson }};
+        const compareMovies = {{ compare_movies|default([], true)|tojson }};
+        const recommendationStory = {{ recommendation_story|tojson }};
+        const genrePalette = ['#ff2a5f', '#ff8c42', '#ffd166', '#35d0ba', '#5c7cfa', '#a855f7', '#1dd3b0', '#f97316'];
+        const moodThemes = {
+            neon: { primary: '#ff2a5f', secondary: '#822aff', accent: '#35d0ba' },
+            noir: { primary: '#d5d8e5', secondary: '#5c7cfa', accent: '#94a3b8' },
+            aurora: { primary: '#1dd3b0', secondary: '#5c7cfa', accent: '#ffd166' },
+            sunset: { primary: '#ff8c42', secondary: '#ff2a5f', accent: '#ffd166' }
+        };
+        const searchInput = document.getElementById('movie-search');
+        const autocompleteList = document.getElementById('autocomplete-list');
+        const clearSearch = document.getElementById('clear-search');
+        const searchForm = document.getElementById('search-form');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const loadingText = document.getElementById('loading-text');
+        const moodWheel = document.getElementById('mood-wheel');
+        const queueList = document.getElementById('watch-queue-list');
+        const queueEmpty = document.getElementById('watch-queue-empty');
+        
+        const trailerModal = document.getElementById('trailer-modal');
+        const trailerIframe = document.getElementById('trailer-iframe');
+        
+        const watchQueue = new Map(JSON.parse(localStorage.getItem('watchQueue') || '[]'));
+        let activeIndex = -1;
+
+        // Toggle clear input button visibility
+        function toggleClearButton() {
+            if (clearSearch) {
+                clearSearch.style.display = searchInput.value ? 'block' : 'none';
+            }
+        }
+        
+        toggleClearButton();
+
+        // Autocomplete filtering
+        searchInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            toggleClearButton();
+            autocompleteList.innerHTML = '';
+            activeIndex = -1;
+
+            if (!query) {
+                autocompleteList.style.display = 'none';
+                return;
+            }
+
+            const matches = [];
+            for (let movie of movies) {
+                if (movie.toLowerCase().includes(query)) {
+                    matches.push(movie);
+                    if (matches.length >= 8) break; // Limit suggestions
+                }
+            }
+
+            if (matches.length === 0) {
+                autocompleteList.style.display = 'none';
+                return;
+            }
+
+            autocompleteList.style.display = 'block';
+            matches.forEach((movie, index) => {
+                const item = document.createElement('div');
+                item.className = 'autocomplete-item';
+                
+                // Bold matching text
+                const regex = new RegExp(`(${query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi');
+                const highlighted = movie.replace(regex, '<strong>$1</strong>');
+                item.innerHTML = highlighted;
+                
+                item.addEventListener('click', function() {
+                    searchInput.value = movie;
+                    autocompleteList.style.display = 'none';
+                    showLoader("Curating recommendation list...");
+                    searchForm.submit();
+                });
+                
+                autocompleteList.appendChild(item);
+            });
+        });
+
+        // Clear input field button handler
+        if (clearSearch) {
+            clearSearch.addEventListener('click', function() {
+                searchInput.value = '';
+                autocompleteList.innerHTML = '';
+                autocompleteList.style.display = 'none';
+                toggleClearButton();
+                searchInput.focus();
+            });
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (e.target !== searchInput && e.target !== autocompleteList) {
+                autocompleteList.style.display = 'none';
+            }
+        });
+
+        // Keyboard navigation (Up/Down arrows and Enter)
+        searchInput.addEventListener('keydown', function(e) {
+            const items = autocompleteList.querySelectorAll('.autocomplete-item');
+            if (!items.length) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                activeIndex = (activeIndex + 1) % items.length;
+                updateActiveItem(items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                activeIndex = (activeIndex - 1 + items.length) % items.length;
+                updateActiveItem(items);
+            } else if (e.key === 'Enter') {
+                if (activeIndex > -1) {
+                    e.preventDefault();
+                    items[activeIndex].click();
+                }
+            }
+        });
+
+        function updateActiveItem(items) {
+            items.forEach((item, index) => {
+                if (index === activeIndex) {
+                    item.classList.add('active');
+                    item.scrollIntoView({ block: 'nearest' });
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        }
+
+        // Display beautiful loader during data fetch/processing
+        function showLoader(initialText = "Analyzing cinematic patterns...") {
+            loadingOverlay.classList.add('active');
+            loadingText.innerText = initialText;
+            
+            const texts = [
+                "Scanning semantic vectors...",
+                "Calculating cosine distance...",
+                "Contacting TMDB API for posters...",
+                "Sourcing YouTube trailer links...",
+                "Organizing the cinematic grid..."
+            ];
+            let i = 0;
+            const textInterval = setInterval(() => {
+                if (!loadingOverlay.classList.contains('active')) {
+                    clearInterval(textInterval);
+                    return;
+                }
+                i = (i + 1) % texts.length;
+                loadingText.innerText = texts[i];
+            }, 1800);
+        }
+
+        searchForm.addEventListener('submit', function() {
+            showLoader();
+        });
+
+        // Click on recommended movie to browse
+        function browseMovie(title) {
+            showLoader(`Browsing matches for "${title}"...`);
+            window.location.href = "/?movie=" + encodeURIComponent(title);
+        }
+
+        // Carousel scrolling
+        function scrollCarousel(direction) {
+            const container = document.getElementById('carousel-track-container');
+            const scrollAmount = container.clientWidth * 0.85;
+            container.scrollBy({
+                left: direction * scrollAmount,
+                behavior: 'smooth'
+            });
+        }
+
+        // Trailer modal controls
+        function playTrailer(url) {
+            if (!url) return;
+            const autoplayUrl = url + (url.includes('?') ? '&' : '?') + 'autoplay=1';
+            trailerIframe.src = autoplayUrl;
+            trailerModal.classList.add('active');
+        }
+
+        function setTheme(themeName) {
+            const theme = moodThemes[themeName] || moodThemes.neon;
+            document.body.dataset.theme = themeName;
+            document.documentElement.style.setProperty('--primary', theme.primary);
+            document.documentElement.style.setProperty('--secondary', theme.secondary);
+            document.documentElement.style.setProperty('--accent', theme.accent);
+            document.querySelectorAll('.mood-chip').forEach((chip) => {
+                chip.classList.toggle('active', chip.dataset.theme === themeName);
+            });
+        }
+
+        function saveQueue() {
+            localStorage.setItem('watchQueue', JSON.stringify(Array.from(watchQueue.entries())));
+        }
+
+        function renderQueue() {
+            if (!queueList || !queueEmpty) return;
+
+            const entries = Array.from(watchQueue.values());
+            queueEmpty.style.display = entries.length ? 'none' : 'flex';
+            queueList.innerHTML = entries.map((movie) => `
+                <div class="queue-card">
+                    <img src="${movie.posterUrl}" alt="${movie.title} poster">
+                    <div>
+                        <strong>${movie.title}</strong>
+                        <span>Watch next</span>
+                    </div>
+                    <button type="button" onclick='removeFromQueue(${JSON.stringify(movie.title)})'>Remove</button>
+                </div>
+            `).join('');
+        }
+
+        function toggleQueue(title, posterUrl) {
+            if (watchQueue.has(title)) {
+                watchQueue.delete(title);
+            } else {
+                watchQueue.set(title, { title, posterUrl });
+            }
+            saveQueue();
+            renderQueue();
+        }
+
+        function removeFromQueue(title) {
+            watchQueue.delete(title);
+            saveQueue();
+            renderQueue();
+        }
+
+        window.toggleQueue = toggleQueue;
+        window.removeFromQueue = removeFromQueue;
+
+        if (moodWheel) {
+            moodWheel.addEventListener('click', function(e) {
+                const button = e.target.closest('.mood-chip');
+                if (!button) return;
+                setTheme(button.dataset.theme);
+            });
+        }
+
+        setTheme(localStorage.getItem('cinemaTheme') || 'neon');
+
+        document.querySelectorAll('.mood-chip').forEach((chip) => {
+            chip.addEventListener('click', function() {
+                localStorage.setItem('cinemaTheme', this.dataset.theme);
+            });
+        });
+
+        renderQueue();
+
+        if (recommendationStory) {
+            const storyBanner = document.querySelector('.story-banner');
+            if (storyBanner) {
+                storyBanner.classList.add('is-visible');
+            }
+        }
+
+        function buildDonutGradient(progress) {
+            let remaining = 100 * progress;
+            let cursor = 0;
+            const slices = [];
+
+            genreStats.forEach((item, index) => {
+                if (remaining <= 0) {
+                    return;
+                }
+
+                const sliceSize = Math.min(item.percent, remaining);
+                const start = cursor;
+                const end = cursor + sliceSize;
+                slices.push(`${genrePalette[index % genrePalette.length]} ${start.toFixed(2)}% ${end.toFixed(2)}%`);
+                cursor = end;
+                remaining -= sliceSize;
+            });
+
+            if (cursor < 100) {
+                slices.push(`rgba(255, 255, 255, 0.06) ${cursor.toFixed(2)}% 100%`);
+            }
+
+            return `conic-gradient(from -90deg, ${slices.join(', ')})`;
+        }
+
+        function renderGenreStats() {
+            const genreSection = document.querySelector('.genre-stats-section');
+            const donut = document.getElementById('genre-donut');
+            const totalCount = document.getElementById('genre-total-count');
+            const legend = document.getElementById('genre-legend');
+            const bars = document.getElementById('genre-bars');
+
+            if (!genreSection || !donut || !totalCount || !legend || !bars || !genreStats.length) {
+                return;
+            }
+
+            const totalGenres = genreStats.reduce((sum, item) => sum + item.count, 0);
+            totalCount.textContent = totalGenres;
+
+            legend.innerHTML = genreStats.map((item, index) => {
+                const swatch = genrePalette[index % genrePalette.length];
+                return `
+                    <div class="genre-legend-item">
+                        <span class="genre-legend-swatch" style="--swatch: ${swatch};"></span>
+                        <span>${item.genre}</span>
+                        <strong>${item.percent}%</strong>
+                    </div>
+                `;
+            }).join('');
+
+            bars.innerHTML = genreStats.map((item, index) => {
+                const color = genrePalette[index % genrePalette.length];
+                return `
+                    <div class="genre-bar-row" data-target="${item.percent}">
+                        <div class="genre-bar-top">
+                            <span class="genre-bar-name">${item.genre}</span>
+                            <span class="genre-bar-value">${item.percent}%</span>
+                        </div>
+                        <div class="genre-bar-track">
+                            <span class="genre-bar-fill" style="--bar-color: ${color};"></span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const barFills = bars.querySelectorAll('.genre-bar-fill');
+            const barRows = bars.querySelectorAll('.genre-bar-row');
+            const duration = 1300;
+            let startTime = null;
+
+            function animateFrame(timestamp) {
+                if (startTime === null) {
+                    startTime = timestamp;
+                }
+
+                const rawProgress = Math.min((timestamp - startTime) / duration, 1);
+                const easedProgress = 1 - Math.pow(1 - rawProgress, 3);
+
+                donut.style.setProperty('--donut-gradient', buildDonutGradient(easedProgress));
+
+                barFills.forEach((fill, index) => {
+                    const target = parseFloat(barRows[index].dataset.target || '0');
+                    fill.style.width = `${target * easedProgress}%`;
+                });
+
+                if (rawProgress < 1) {
+                    requestAnimationFrame(animateFrame);
+                }
+            }
+
+            requestAnimationFrame(animateFrame);
+            genreSection.classList.add('is-visible');
+        }
+
+        if (genreStats.length) {
+            renderGenreStats();
+        }
+
+        function stopTrailer() {
+            trailerIframe.src = '';
+            trailerModal.classList.remove('active');
+        }
+
+        // Close trailer modal on background click
+        trailerModal.addEventListener('click', function(e) {
+            if (e.target === trailerModal) {
+                stopTrailer();
+            }
+        });
+    </script>
+</body>
+</html>
