@@ -82,7 +82,7 @@ def build_match_reasons(selected_movie_data, movie_data, similarity_score):
 def recommend(movie):
     matched = movies[movies['title'].str.lower() == movie.lower()]
     if matched.empty:
-        return None, []
+        return None, [], "Movie not found in database", []
     
     index = matched.index[0]
     selected_movie_data = movies.iloc[index]
