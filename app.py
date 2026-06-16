@@ -7,9 +7,13 @@ from flask import Flask, render_template, request, redirect, url_for
 
 app = Flask(__name__)
 
+# Read TMDB API key from environment (set TMDB_API_KEY on the host). Falls back
+# to the old hardcoded key so local runs without env still work.
+TMDB_API_KEY = os.environ.get('TMDB_API_KEY', '1c98fa6b3edcd11ac5f26bf4eefed1bb')
+
 # Function to fetch poster
 def fetch_poster(movie_id):
-    url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key=1c98fa6b3edcd11ac5f26bf4eefed1bb&language=en-US"
+    url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}&language=en-US"
     try:
         response = requests.get(url, timeout=5)
         if response.status_code == 200:
@@ -24,7 +28,7 @@ def fetch_poster(movie_id):
 
 # Function to fetch movie trailer
 def fetch_trailer(movie_id):
-    url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key=1c98fa6b3edcd11ac5f26bf4eefed1bb&language=en-US&append_to_response=videos"
+    url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={TMDB_API_KEY}&language=en-US&append_to_response=videos"
     try:
         response = requests.get(url, timeout=5)
         if response.status_code == 200:
